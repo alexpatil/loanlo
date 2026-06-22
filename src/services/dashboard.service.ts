@@ -149,6 +149,69 @@ export async function getLoanTypeBreakdown(
   }));
 }
 
+export interface ActivityItem {
+  id: string;
+  kind: "COLLECTION" | "LOAN";
+  title: string;
+  subtitle: string;
+  amount: number;
+  date: Date;
+  href: string;
+}
+
+/**
+ * Unified recent-activity feed: the latest collections and new loans, merged
+ * and sorted by recency — a human-readable pulse of the business.
+ */
+export async function getRecentActivity(
+  scopeAgentId?: string,
+  limit = 8,
+): Promise<ActivityItem[]> {
+  const [payments, loans] = await Promise.all([
+    prisma.payment.findMany({
+      where: {
+        deletedAt: { isSet: false },
+        ...(scopeAgentId ? { loan: { assignedAgentId: scopeAgentId } } : {}),
+      },
+      orderBy: { paymentDate: "desc" },
+      take: limit,
+      include: {
+        customer: { select: { firstName: true, lastName: true } },
+        loan: { select: { id: true, loanNumber: true } },
+      },
+    }),
+    prisma.loan.findMany({
+      where: loanScope(scopeAgentId),
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: { customer: { select: { firstName: true, lastName: true } } },
+    }),
+  ]);
+
+  const items: ActivityItem[] = [
+    ...payments.map((p) => ({
+      id: `pay-${p.id}`,
+      kind: "COLLECTION" as const,
+      title: `Payment from ${p.customer.firstName} ${p.customer.lastName}`,
+      subtitle: p.loan.loanNumber,
+      amount: p.amount,
+      date: p.paymentDate,
+      href: `/loans/${p.loan.id}`,
+    })),
+    ...loans.map((l) => ({
+      id: `loan-${l.id}`,
+      kind: "LOAN" as const,
+      title: `New loan · ${l.customer.firstName} ${l.customer.lastName}`,
+      subtitle: l.loanNumber,
+      amount: l.principalAmount,
+      date: l.createdAt,
+      href: `/loans/${l.id}`,
+    })),
+  ];
+
+  return items.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, limit);
+}
+
 export async function getLoanStatusBreakdown(
   scopeAgentId?: string,
 ): Promise<LoanStatusBreakdown[]> {

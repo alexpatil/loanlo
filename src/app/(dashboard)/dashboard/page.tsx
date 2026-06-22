@@ -1,45 +1,40 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { startOfDay } from "date-fns";
 import {
-  Banknote,
-  CheckCircle2,
-  Clock,
-  Users,
+  Coins,
+  PiggyBank,
   Wallet,
   AlertTriangle,
-  TrendingUp,
-  PiggyBank,
-  Import,
-  Coins,
+  CalendarClock,
+  CalendarRange,
+  Clock,
+  HandCoins,
+  Banknote,
+  ArrowUpRight,
 } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { requireAuth } from "@/lib/session";
 import { agentScope } from "@/lib/action-utils";
-import {
-  getDashboardStats,
-  getCollectionTrend,
-  getLoanStatusBreakdown,
-  getLoanTypeBreakdown,
-} from "@/services/dashboard.service";
-import { LOAN_TYPE_LABELS, type LoanTypeKey } from "@/lib/constants";
-import { getUpcomingEmis } from "@/services/payment.service";
+import { getDashboardStats, getCollectionTrend, getRecentActivity } from "@/services/dashboard.service";
+import { listPayments } from "@/services/payment.service";
 import { getRepaymentOverview } from "@/services/repayment.service";
-import { getMigrationStats } from "@/services/migration.service";
 import { getCashSummary } from "@/services/cash.service";
 import { isAdminLike } from "@/lib/rbac";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/states";
 import { CollectionChart } from "@/features/dashboard/collection-chart";
-import { LoanStatusChart } from "@/features/dashboard/loan-status-chart";
-import { RepaymentWidgets } from "@/features/dashboard/repayment-widgets";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -49,57 +44,70 @@ export default async function DashboardPage() {
   const scope = agentScope(role, user.id);
   const showCash = isAdminLike(role);
 
-  const [stats, trend, breakdown, typeBreakdown, upcoming, repayment, migration, cash] =
-    await Promise.all([
-      getDashboardStats(scope),
-      getCollectionTrend(scope),
-      getLoanStatusBreakdown(scope),
-      getLoanTypeBreakdown(scope),
-      getUpcomingEmis(scope, 6),
-      getRepaymentOverview(scope),
-      getMigrationStats(scope),
-      showCash ? getCashSummary() : Promise.resolve(null),
-    ]);
+  const [stats, trend, repayment, activity, todayColl, cash] = await Promise.all([
+    getDashboardStats(scope),
+    getCollectionTrend(scope),
+    getRepaymentOverview(scope),
+    getRecentActivity(scope, 8),
+    listPayments({ from: startOfDay(new Date()), collectedById: scope, pageSize: 1 }),
+    showCash ? getCashSummary() : Promise.resolve(null),
+  ]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={`Welcome back, ${user.name.split(" ")[0]} 👋`}
-        description="Here's what's happening across your lending portfolio today."
+        description="Your lending portfolio at a glance — what needs attention today."
       />
 
-      {/* Cash position (admins only) */}
-      {cash && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Cash Available" value={formatCurrency(cash.cashAvailable)} icon={Coins} accent={cash.cashAvailable >= 0 ? "emerald" : "rose"} hint="In hand right now" />
-          <StatCard title="Loans Disbursed" value={formatCurrency(cash.loansDisbursed)} icon={Banknote} accent="blue" />
-          <StatCard title="Collections" value={formatCurrency(cash.collectionsReceived)} icon={Wallet} accent="violet" />
-          <StatCard title="Expenses" value={formatCurrency(cash.expenses)} icon={PiggyBank} accent="rose" />
-        </div>
-      )}
-
-      {/* KPI bento grid */}
+      {/* Headline metrics — the four numbers that drive the business */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Total Loans" value={formatNumber(stats.totalLoans)} icon={Banknote} accent="violet" hint={`${stats.pendingLoans} pending approval`} />
-        <StatCard title="Active Loans" value={formatNumber(stats.activeLoans)} icon={TrendingUp} accent="emerald" hint={`${stats.closedLoans} closed`} />
-        <StatCard title="Overdue Loans" value={formatNumber(stats.overdueLoans)} icon={AlertTriangle} accent="rose" hint="Needs follow-up" />
-        <StatCard title="Total Customers" value={formatNumber(stats.totalCustomers)} icon={Users} accent="blue" />
-        <StatCard title="Total Disbursed" value={formatCurrency(stats.totalDisbursed)} icon={Wallet} accent="violet" />
-        <StatCard title="Total Collection" value={formatCurrency(stats.totalCollection)} icon={PiggyBank} accent="emerald" />
-        <StatCard title="This Month Disbursed" value={formatCurrency(stats.monthlyDisbursement)} icon={Clock} accent="blue" />
-        <StatCard title="Outstanding Principal" value={formatCurrency(stats.outstandingPrincipal)} icon={CheckCircle2} accent="amber" />
-        <StatCard title="Migrated Loans" value={formatNumber(migration.count)} icon={Import} accent="blue" hint={`${formatCurrency(migration.outstanding)} outstanding`} />
+        {cash ? (
+          <StatCard
+            title="Cash Available"
+            value={formatCurrency(cash.cashAvailable)}
+            icon={Coins}
+            accent={cash.cashAvailable >= 0 ? "emerald" : "rose"}
+            hint="In hand right now"
+          />
+        ) : (
+          <StatCard
+            title="Due This Week"
+            value={formatCurrency(repayment.dueThisWeek.amount)}
+            icon={CalendarRange}
+            accent="blue"
+            hint={`${repayment.dueThisWeek.count} collection${repayment.dueThisWeek.count === 1 ? "" : "s"}`}
+          />
+        )}
+        <StatCard
+          title="Outstanding Amount"
+          value={formatCurrency(stats.outstandingPrincipal)}
+          icon={PiggyBank}
+          accent="amber"
+          hint="Money still on the street"
+        />
+        <StatCard
+          title="Today's Collections"
+          value={formatCurrency(todayColl.totalAmount)}
+          icon={Wallet}
+          accent="violet"
+          hint={`${todayColl.total} payment${todayColl.total === 1 ? "" : "s"} today`}
+        />
+        <StatCard
+          title="Overdue Amount"
+          value={formatCurrency(repayment.overdue.amount)}
+          icon={AlertTriangle}
+          accent="rose"
+          hint={`${repayment.overdue.count} loan${repayment.overdue.count === 1 ? "" : "s"} overdue`}
+        />
       </div>
 
-      {/* Repayment radar */}
-      <RepaymentWidgets data={repayment} />
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* Trend + activity */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Collection vs Disbursement</CardTitle>
-            <CardDescription>Last 6 months performance</CardDescription>
+            <CardTitle>Collection Trend</CardTitle>
+            <CardDescription>Collections vs disbursement · last 6 months</CardDescription>
           </CardHeader>
           <CardContent>
             <CollectionChart data={trend} />
@@ -108,87 +116,138 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Loan Status</CardTitle>
-            <CardDescription>Distribution by stage</CardDescription>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest payments and new loans</CardDescription>
           </CardHeader>
           <CardContent>
-            <LoanStatusChart data={breakdown} />
+            {activity.length === 0 ? (
+              <EmptyState icon={Clock} title="No activity yet" description="Collections and new loans will show up here." />
+            ) : (
+              <ul className="-mt-1 divide-y divide-border/60">
+                {activity.map((a) => {
+                  const isColl = a.kind === "COLLECTION";
+                  return (
+                    <li key={a.id} className="py-2.5">
+                      <Link href={a.href} className="flex items-center gap-3">
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                            isColl ? "bg-emerald-500/10 text-emerald-600" : "bg-blue-500/10 text-blue-600"
+                          }`}
+                        >
+                          {isColl ? <Wallet className="h-4 w-4" /> : <Banknote className="h-4 w-4" />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{a.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {a.subtitle} · {formatDate(a.date)}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold">{formatCurrency(a.amount)}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Loan type analytics */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Portfolio by loan type</CardTitle>
-          <CardDescription>Outstanding principal across calculation methods</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {typeBreakdown.length === 0 ? (
-            <p className="py-4 text-sm text-muted-foreground">No loans yet.</p>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-3">
-              {typeBreakdown.map((t) => (
-                <div
-                  key={t.loanType}
-                  className="rounded-2xl border border-border/60 bg-muted/30 p-4"
-                >
-                  <p className="text-sm font-medium">
-                    {LOAN_TYPE_LABELS[t.loanType as LoanTypeKey] ?? t.loanType}
-                  </p>
-                  <p className="mt-2 text-xl font-bold">{formatCurrency(t.outstanding)}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t.count} loan{t.count === 1 ? "" : "s"} · {formatCurrency(t.principal)} disbursed
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Collections that need action */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4" /> Upcoming Collections
+            </CardTitle>
+            <CardDescription>Loans approaching their due date</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {repayment.upcoming.length === 0 ? (
+              <EmptyState icon={CalendarClock} title="Nothing upcoming" description="No collections are due soon." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Loan</TableHead>
+                    <TableHead>Due date</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {repayment.upcoming.map((item) => (
+                    <TableRow key={`${item.source}-${item.id}`}>
+                      <TableCell className="text-sm font-medium">{item.customerName}</TableCell>
+                      <TableCell className="text-sm">
+                        <Link href={`/loans/${item.loanId}`} className="text-muted-foreground hover:text-violet-600">
+                          {item.loanNumber}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{formatDate(item.dueDate)}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold">{formatCurrency(item.amount)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Upcoming EMIs */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming & Overdue EMIs</CardTitle>
-          <CardDescription>The next collections due across your portfolio</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {upcoming.length === 0 ? (
-            <EmptyState
-              icon={CheckCircle2}
-              title="All caught up"
-              description="There are no pending EMIs to collect right now."
-            />
-          ) : (
-            <ul className="divide-y divide-border/60">
-              {upcoming.map((emi) => {
-                const overdue = emi.status === "OVERDUE";
-                const c = emi.loan.customer;
-                return (
-                  <li key={emi.id} className="flex items-center justify-between gap-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {c.firstName} {c.lastName}
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {emi.loan.loanNumber} · #{emi.installmentNumber}
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Due {formatDate(emi.dueDate)} · {c.phone}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold">{formatCurrency(emi.emiAmount)}</p>
-                      <p className={overdue ? "text-xs font-medium text-rose-600" : "text-xs text-muted-foreground"}>
-                        {overdue ? "Overdue" : "Due soon"}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HandCoins className="h-4 w-4" /> Customer Commitments
+            </CardTitle>
+            <CardDescription>Next expected payment per customer</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {repayment.commitments.length === 0 ? (
+              <EmptyState icon={HandCoins} title="No commitments" description="No pending customer commitments." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Next due</TableHead>
+                    <TableHead className="text-center">Dues</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {repayment.commitments.map((c) => (
+                    <TableRow key={`${c.customerName}-${c.phone}`}>
+                      <TableCell className="text-sm font-medium">
+                        {c.customerName}
+                        <span className="block text-xs text-muted-foreground">{c.phone}</span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{formatDate(c.nextDueDate)}</TableCell>
+                      <TableCell className="text-center text-sm text-muted-foreground">{c.items}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold">{formatCurrency(c.totalDue)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pointer to the deeper analytics that used to crowd this page */}
+      <Card className="bg-muted/30">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+          <div>
+            <p className="text-sm font-medium">Looking for totals and portfolio statistics?</p>
+            <p className="text-xs text-muted-foreground">
+              Total loans, disbursed, collections, migrated loans and monthly trends live in Reports.
+            </p>
+          </div>
+          <Link
+            href="/reports"
+            className="inline-flex items-center gap-1 text-sm font-medium text-violet-600 hover:text-violet-700"
+          >
+            View Reports <ArrowUpRight className="h-4 w-4" />
+          </Link>
         </CardContent>
       </Card>
     </div>

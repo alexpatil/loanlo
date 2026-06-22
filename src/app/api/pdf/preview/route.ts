@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
           customerName: "Ramesh Kumar",
           generatedAt: TODAY,
           loanTypeLabel: "EMI Loan",
+          status: "ACTIVE",
+          dueDate: TODAY,
+          agentName: user.name,
           summary: { principal: 50000, charged: 9000, paid: 14000, outstanding: 45000 },
           lines: [
             { date: TODAY, description: "Loan disbursed (total payable)", debit: "INR 59,000", credit: "", balance: "INR 59,000" },
@@ -87,6 +90,7 @@ export async function GET(req: NextRequest) {
           loanNumber: "LN-2026-000001",
           date: TODAY,
           loanTypeLabel: "EMI Loan",
+          status: "ACTIVE",
           customer: {
             name: "Ramesh Kumar",
             code: "CUS-000001",

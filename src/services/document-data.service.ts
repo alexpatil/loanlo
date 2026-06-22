@@ -25,7 +25,7 @@ import type {
 } from "./pdf/documents";
 
 const inr = (n: number) =>
-  "INR " + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n ?? 0);
+  "Rs " + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n ?? 0);
 
 function rateLabel(loan: {
   loanType: string;
@@ -52,6 +52,7 @@ export async function buildAgreementData(loanId: string, scopeAgentId?: string):
     loanNumber: loan.loanNumber,
     date: formatDate(loan.createdAt),
     loanTypeLabel: LOAN_TYPE_LABELS[loan.loanType as LoanTypeKey],
+    status: loan.status,
     customer: {
       name: `${c.firstName} ${c.lastName}`,
       code: c.customerCode,
@@ -78,16 +79,62 @@ export async function buildAgreementData(loanId: string, scopeAgentId?: string):
 export async function buildStatementData(loanId: string, scopeAgentId?: string): Promise<StatementData | null> {
   const loan = await prisma.loan.findFirst({
     where: { id: loanId, deletedAt: { isSet: false }, ...(scopeAgentId ? { assignedAgentId: scopeAgentId } : {}) },
-    include: { customer: { select: { firstName: true, lastName: true } } },
+    include: {
+      customer: { select: { firstName: true, lastName: true } },
+      assignedAgent: { select: { name: true } },
+    },
   });
   if (!loan) return null;
 
   const customerName = `${loan.customer.firstName} ${loan.customer.lastName}`;
-  const loanTypeLabel = LOAN_TYPE_LABELS[loan.loanType as LoanTypeKey];
+  const loanTypeLabel =
+    LOAN_TYPE_LABELS[loan.loanType as LoanTypeKey] + (loan.isMigrated ? " · Migrated" : "");
+  const dueDate =
+    loan.repaymentMode === "OPEN_ENDED"
+      ? "Open ended"
+      : loan.expectedPaymentDate || loan.maturityDate
+        ? formatDate(loan.expectedPaymentDate ?? loan.maturityDate)
+        : "—";
+  // Shared header facts for every statement variant.
+  const meta = {
+    loanNumber: loan.loanNumber,
+    customerName,
+    generatedAt: formatDate(new Date()),
+    loanTypeLabel,
+    status: loan.status,
+    dueDate,
+    agentName: loan.assignedAgent?.name ?? undefined,
+  };
   const lines: StatementLineDTO[] = [];
 
-  // Migrated loans: ledger reconstructed from the opening balance + historical
-  // collections, reconciled to the authoritative entered outstanding.
+  // Flexible loans (including migrated ones) accrue dynamically — derive the
+  // live current interest and outstanding from the payment history so the
+  // statement always reflects today's balance, not a stale stored figure.
+  if (loan.loanType === "FLEXIBLE_LOAN" && loan.disbursementDate) {
+    const state = await computeFlexibleForLoan(loan);
+    for (const ln of state.statement) {
+      lines.push({
+        date: formatDate(ln.date),
+        description: ln.description,
+        debit: ln.type === "PAYMENT" ? "" : inr(ln.type === "DISBURSEMENT" ? loan.principalAmount : ln.interest),
+        credit: ln.type === "PAYMENT" ? inr(ln.payment) : "",
+        balance: inr(ln.balance),
+      });
+    }
+    return {
+      ...meta,
+      summary: {
+        principal: loan.principalAmount,
+        charged: state.totalInterestAccrued,
+        paid: state.totalPaid,
+        outstanding: state.totalOutstanding,
+      },
+      lines,
+    };
+  }
+
+  // Migrated (non-flexible) loans: ledger reconstructed from the opening balance
+  // + historical collections, reconciled to the authoritative entered outstanding.
   if (loan.isMigrated) {
     const migPayments = await prisma.payment.findMany({
       where: { loanId: loan.id, deletedAt: { isSet: false } },
@@ -124,41 +171,12 @@ export async function buildStatementData(loanId: string, scopeAgentId?: string):
       });
     }
     return {
-      loanNumber: loan.loanNumber,
-      customerName,
-      generatedAt: formatDate(new Date()),
-      loanTypeLabel: `${loanTypeLabel} · Migrated`,
+      ...meta,
       summary: {
         principal: loan.principalAmount,
         charged: loan.totalInterest,
         paid: migPaid,
         outstanding: loan.outstandingPrincipal,
-      },
-      lines,
-    };
-  }
-
-  if (loan.loanType === "FLEXIBLE_LOAN" && loan.disbursementDate) {
-    const state = await computeFlexibleForLoan(loan);
-    for (const ln of state.statement) {
-      lines.push({
-        date: formatDate(ln.date),
-        description: ln.description,
-        debit: ln.type === "PAYMENT" ? "" : inr(ln.type === "DISBURSEMENT" ? loan.principalAmount : ln.interest),
-        credit: ln.type === "PAYMENT" ? inr(ln.payment) : "",
-        balance: inr(ln.balance),
-      });
-    }
-    return {
-      loanNumber: loan.loanNumber,
-      customerName,
-      generatedAt: formatDate(new Date()),
-      loanTypeLabel,
-      summary: {
-        principal: loan.principalAmount,
-        charged: state.totalInterestAccrued,
-        paid: state.totalPaid,
-        outstanding: state.totalOutstanding,
       },
       lines,
     };
@@ -193,10 +211,7 @@ export async function buildStatementData(loanId: string, scopeAgentId?: string):
   }
 
   return {
-    loanNumber: loan.loanNumber,
-    customerName,
-    generatedAt: formatDate(new Date()),
-    loanTypeLabel,
+    ...meta,
     summary: {
       principal: loan.principalAmount,
       charged: loan.totalInterest,

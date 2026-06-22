@@ -176,21 +176,21 @@ export const CASH_TYPE_STYLES: Record<CashTransactionTypeKey, string> = {
 export const MANUAL_CASH_TYPES = ["CAPITAL_ADD", "CAPITAL_WITHDRAWAL", "EXPENSE"] as const;
 
 // ─── PDF templates ───────────────────────────────────────────────────────────
-export const PDF_TEMPLATE_KEYS = ["CLASSIC", "MODERN", "PROFESSIONAL", "MINIMAL"] as const;
+export const PDF_TEMPLATE_KEYS = ["MODERN", "PROFESSIONAL", "MINIMAL", "CLASSIC"] as const;
 export type PdfTemplateKey = (typeof PDF_TEMPLATE_KEYS)[number];
 
 export const PDF_TEMPLATE_LABELS: Record<PdfTemplateKey, string> = {
-  CLASSIC: "Classic",
-  MODERN: "Modern",
-  PROFESSIONAL: "Professional",
-  MINIMAL: "Minimal",
+  MODERN: "Modern Fintech",
+  PROFESSIONAL: "Professional Banking",
+  MINIMAL: "Minimal Black & White",
+  CLASSIC: "Rural Finance Print",
 };
 
 export const PDF_TEMPLATE_DESCRIPTIONS: Record<PdfTemplateKey, string> = {
-  CLASSIC: "Serif typography with a clean split header — timeless and formal.",
-  MODERN: "Bold colored header bar with uppercase titles — fresh and branded.",
-  PROFESSIONAL: "Corporate split header with a strong accent rule — business-ready.",
-  MINIMAL: "Understated monochrome layout with a thin rule — quiet and elegant.",
+  MODERN: "Dark premium hero with brand-coloured KPI cards — bold, app-like.",
+  PROFESSIONAL: "Corporate navy with a formal accent rule — bank-grade and trustworthy.",
+  MINIMAL: "Monochrome, typographic and ink-light — clean and print-friendly.",
+  CLASSIC: "High-contrast, large type and heavy rules — built for cheap printers.",
 };
 
 /** Document types that branding/templates apply to. */

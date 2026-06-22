@@ -169,3 +169,45 @@ export async function getRepaymentOverview(scopeAgentId?: string): Promise<Repay
     commitments,
   };
 }
+
+export interface OverdueLoanItem {
+  id: string;
+  customerName: string;
+  phone: string;
+  dueDate: Date | null;
+  amount: number;
+}
+
+/**
+ * Overdue customers across every loan type — driven by `loan.status`, so
+ * flexible (Non-EMI) loans without an EMI schedule are included.
+ */
+export async function getOverdueLoans(
+  scopeAgentId?: string,
+  limit = 8,
+): Promise<OverdueLoanItem[]> {
+  const loans = await prisma.loan.findMany({
+    where: {
+      status: "OVERDUE",
+      deletedAt: { isSet: false },
+      ...(scopeAgentId ? { assignedAgentId: scopeAgentId } : {}),
+    },
+    select: {
+      id: true,
+      expectedPaymentDate: true,
+      maturityDate: true,
+      outstandingPrincipal: true,
+      customer: { select: { firstName: true, lastName: true, phone: true } },
+    },
+    orderBy: { expectedPaymentDate: "asc" },
+    take: limit,
+  });
+
+  return loans.map((l) => ({
+    id: l.id,
+    customerName: `${l.customer.firstName} ${l.customer.lastName}`,
+    phone: l.customer.phone,
+    dueDate: l.expectedPaymentDate ?? l.maturityDate,
+    amount: round2(l.outstandingPrincipal),
+  }));
+}

@@ -4,7 +4,8 @@ import { Wallet, CalendarDays, TrendingUp, AlertTriangle } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { requireAuth } from "@/lib/session";
 import { agentScope } from "@/lib/action-utils";
-import { listPayments, getUpcomingEmis } from "@/services/payment.service";
+import { listPayments } from "@/services/payment.service";
+import { getOverdueLoans } from "@/services/repayment.service";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,14 +32,12 @@ export default async function CollectionsPage() {
   const today = startOfDay(new Date());
   const monthStart = startOfMonth(new Date());
 
-  const [todayColl, monthColl, recent, overdue] = await Promise.all([
+  const [todayColl, monthColl, recent, overdueOnly] = await Promise.all([
     listPayments({ from: today, collectedById: scope, pageSize: 1 }),
     listPayments({ from: monthStart, collectedById: scope, pageSize: 1 }),
     listPayments({ pageSize: 12, collectedById: scope }),
-    getUpcomingEmis(scope, 8),
+    getOverdueLoans(scope, 8),
   ]);
-
-  const overdueOnly = overdue.filter((e) => e.status === "OVERDUE");
 
   return (
     <div className="space-y-5">
@@ -109,18 +108,17 @@ export default async function CollectionsPage() {
               <EmptyState icon={Wallet} title="No overdue" description="Everyone is on track." />
             ) : (
               <ul className="divide-y divide-border/60">
-                {overdueOnly.map((emi) => (
-                  <li key={emi.id} className="flex items-center justify-between gap-3 py-3">
+                {overdueOnly.map((loan) => (
+                  <li key={loan.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {emi.loan.customer.firstName} {emi.loan.customer.lastName}
-                      </p>
+                      <p className="truncate text-sm font-medium">{loan.customerName}</p>
                       <p className="text-xs text-muted-foreground">
-                        Due {formatDate(emi.dueDate)} · {emi.loan.customer.phone}
+                        {loan.dueDate ? `Due ${formatDate(loan.dueDate)} · ` : ""}
+                        {loan.phone}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{formatCurrency(emi.emiAmount)}</p>
+                      <p className="text-sm font-semibold">{formatCurrency(loan.amount)}</p>
                       <StatusBadge status="OVERDUE" />
                     </div>
                   </li>

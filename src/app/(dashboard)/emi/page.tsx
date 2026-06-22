@@ -105,7 +105,9 @@ export default async function EmiPage({
                           {emi.loan.loanNumber}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-sm">#{emi.installmentNumber}</TableCell>
+                      <TableCell className="text-sm">
+                        {emi.installmentNumber ? `#${emi.installmentNumber}` : "—"}
+                      </TableCell>
                       <TableCell className="text-sm">{formatDate(emi.dueDate)}</TableCell>
                       <TableCell className="text-sm font-medium">
                         {formatCurrency(emi.emiAmount)}
@@ -117,7 +119,7 @@ export default async function EmiPage({
                         {emi.status !== "PAID" && can(role, "payment:write") ? (
                           <CollectPaymentDialog
                             loanId={emi.loan.id}
-                            emiScheduleId={emi.id}
+                            emiScheduleId={emi.source === "EMI" ? emi.id : undefined}
                             suggestedAmount={Math.max(
                               0,
                               emi.emiAmount + emi.penaltyAmount - emi.paidAmount,

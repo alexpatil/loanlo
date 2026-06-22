@@ -36,7 +36,7 @@ export async function getPdfSettings(): Promise<ResolvedPdfSettings> {
     primaryColor: row?.primaryColor ?? DEFAULT_PRIMARY,
     logoUrl: row?.logoUrl ?? "",
     signatureUrl: row?.signatureUrl ?? "",
-    defaultTemplate: ((row?.defaultTemplate as TemplateKey) ?? "CLASSIC") as TemplateKey,
+    defaultTemplate: ((row?.defaultTemplate as TemplateKey) ?? "MODERN") as TemplateKey,
   };
 }
 
