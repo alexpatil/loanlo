@@ -1,0 +1,495 @@
+// Loanlo — Loan Management System
+// Prisma schema for MongoDB
+// Docs: https://www.prisma.io/docs
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Enums
+// ────────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  AGENT
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  CLOSED
+  OVERDUE
+}
+
+enum LoanType {
+  EMI // equated monthly installment (reducing balance, equal payments)
+  FLAT_INTEREST // interest on original principal for the full tenure
+  REDUCING_BALANCE // interest on outstanding; prepayments shrink future interest
+  FLEXIBLE_LOAN // configurable period/method; interest accrues dynamically over time
+}
+
+enum InterestPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum InterestMethod {
+  SIMPLE
+  COMPOUND
+}
+
+enum RepaymentMode {
+  DURATION_BASED // due date derived from tenure/duration
+  FIXED_DATE // due date manually selected
+  OPEN_ENDED // no due date — never overdue by time
+}
+
+// Non-EMI interest calculation method (separate from the EMI/Non-EMI loan kind).
+enum CalculationMethod {
+  FLAT // interest on the original principal (doesn't reduce with payments)
+  REDUCING // interest on the outstanding principal
+  COMPOUND // interest compounds each period
+}
+
+enum DurationUnit {
+  DAYS
+  WEEKS
+  MONTHS
+  YEARS
+}
+
+enum EmiStatus {
+  PENDING
+  PAID
+  PARTIAL
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CHEQUE
+  CARD
+}
+
+enum DocumentType {
+  AADHAAR
+  PAN
+  PHOTO
+  BANK_STATEMENT
+  SALARY_SLIP
+  ADDRESS_PROOF
+  OTHER
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CashTransactionType {
+  CAPITAL_ADD // money in  (+)
+  COLLECTION_RECEIVED // money in  (+)
+  LOAN_DISBURSEMENT // money out (−)
+  EXPENSE // money out (−)
+  CAPITAL_WITHDRAWAL // money out (−)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Auth models (BetterAuth compatible) + application user profile
+// ────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+
+  // Application fields
+  role     Role    @default(AGENT)
+  phone    String?
+  isActive Boolean @default(true)
+  banned   Boolean @default(false)
+
+  // Auth relations (BetterAuth)
+  sessions Session[]
+  accounts Account[]
+
+  // Domain relations
+  assignedCustomers Customer[]    @relation("AgentCustomers")
+  createdCustomers  Customer[]    @relation("CustomerCreatedBy")
+  assignedLoans     Loan[]        @relation("AgentLoans")
+  createdLoans      Loan[]        @relation("LoanCreatedBy")
+  approvedLoans     Loan[]        @relation("LoanApprovedBy")
+  collectedPayments Payment[]     @relation("PaymentCollectedBy")
+  uploadedDocuments Document[]    @relation("DocumentUploadedBy")
+  activityLogs      ActivityLog[]
+  cashTransactions  CashTransaction[] @relation("CashCreatedBy")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([role])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  accountId             String
+  providerId            String
+  userId                String    @db.ObjectId
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Domain models
+// ────────────────────────────────────────────────────────────────────────────
+
+model Customer {
+  id           String  @id @default(auto()) @map("_id") @db.ObjectId
+  customerCode String  @unique
+
+  // Personal
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String
+  alternatePhone String?
+  dateOfBirth    DateTime?
+  gender         Gender?
+  occupation     String?
+  monthlyIncome  Float?
+
+  // KYC
+  aadhaarNumber String?
+  panNumber     String?
+  kycStatus     KycStatus @default(PENDING)
+
+  // Address
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  pincode      String?
+  country      String  @default("India")
+
+  notes String?
+
+  // Relations
+  assignedAgentId String? @db.ObjectId
+  assignedAgent   User?   @relation("AgentCustomers", fields: [assignedAgentId], references: [id])
+  createdById     String? @db.ObjectId
+  createdBy       User?   @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+
+  loans     Loan[]
+  documents Document[]
+  payments  Payment[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([assignedAgentId])
+  @@index([kycStatus])
+  @@index([phone])
+  @@index([deletedAt])
+  @@map("customer")
+}
+
+model Loan {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  loanNumber String @unique
+
+  customerId String   @db.ObjectId
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  // Financials
+  loanType        LoanType @default(EMI)
+  principalAmount Float
+  // For EMI/FLAT/REDUCING this is the annual percentage rate.
+  // For FLEXIBLE_LOAN this is the rate per `interestPeriod`.
+  interestRate    Float
+  interestPeriod  InterestPeriod @default(MONTHLY)
+  interestMethod  InterestMethod @default(SIMPLE)
+  // Non-EMI loans: calculation method + duration in an explicit unit.
+  calculationMethod CalculationMethod?
+  durationValue     Int?
+  durationUnit      DurationUnit?
+  processingFee   Float          @default(0)
+  tenureMonths    Int
+  emiAmount       Float
+  totalInterest   Float
+  totalPayable    Float
+  gracePeriodDays Int            @default(0)
+  // Live outstanding principal — reducing-balance recalc / flexible accrual.
+  outstandingPrincipal Float @default(0)
+  // Last time flexible interest was reconciled (informational).
+  lastAccrualDate      DateTime?
+
+  status LoanStatus @default(PENDING)
+
+  // Repayment strategy. `gracePeriodDays` above is the grace window (graceDays).
+  repaymentMode       RepaymentMode @default(DURATION_BASED)
+  expectedPaymentDate DateTime? // next expected payment / commitment date
+
+  // Migration: loans imported from physical registers with historical data.
+  isMigrated    Boolean   @default(false)
+  migratedAt    DateTime?
+  migrationNote String?
+
+  purpose          String?
+  disbursementDate DateTime?
+  maturityDate     DateTime?
+
+  // Relations
+  assignedAgentId String? @db.ObjectId
+  assignedAgent   User?   @relation("AgentLoans", fields: [assignedAgentId], references: [id])
+  createdById     String? @db.ObjectId
+  createdBy       User?   @relation("LoanCreatedBy", fields: [createdById], references: [id])
+  approvedById    String? @db.ObjectId
+  approvedBy      User?   @relation("LoanApprovedBy", fields: [approvedById], references: [id])
+
+  emiSchedules EmiSchedule[]
+  payments     Payment[]
+  documents    Document[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([loanType])
+  @@index([assignedAgentId])
+  @@index([disbursementDate])
+  @@index([expectedPaymentDate])
+  @@index([isMigrated])
+  @@index([deletedAt])
+  @@map("loan")
+}
+
+model EmiSchedule {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  loanId String @db.ObjectId
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  installmentNumber  Int
+  dueDate            DateTime
+  emiAmount          Float
+  principalComponent Float
+  interestComponent  Float
+  remainingBalance   Float
+
+  status       EmiStatus @default(PENDING)
+  paidAmount   Float     @default(0)
+  penaltyAmount Float    @default(0)
+  paidDate     DateTime?
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([loanId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("emi_schedule")
+}
+
+model Payment {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  loanId String @db.ObjectId
+  loan   Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  emiScheduleId String?      @db.ObjectId
+  emiSchedule   EmiSchedule? @relation(fields: [emiScheduleId], references: [id])
+
+  customerId String   @db.ObjectId
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  amount          Float
+  principalAmount Float @default(0)
+  interestAmount  Float @default(0)
+  penaltyAmount   Float @default(0)
+
+  paymentDate   DateTime      @default(now())
+  paymentMethod PaymentMethod @default(CASH)
+  reference     String?
+  notes         String?
+
+  // Historical collection imported during loan migration.
+  isMigrated Boolean @default(false)
+
+  collectedById String? @db.ObjectId
+  collectedBy   User?   @relation("PaymentCollectedBy", fields: [collectedById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([loanId])
+  @@index([customerId])
+  @@index([paymentDate])
+  @@index([collectedById])
+  @@index([deletedAt])
+  @@map("payment")
+}
+
+model Document {
+  id   String       @id @default(auto()) @map("_id") @db.ObjectId
+  type DocumentType
+  name String
+  url  String
+
+  fileSize Int?
+  mimeType String?
+
+  customerId String?   @db.ObjectId
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  loanId     String?   @db.ObjectId
+  loan       Loan?     @relation(fields: [loanId], references: [id])
+
+  uploadedById String? @db.ObjectId
+  uploadedBy   User?   @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([customerId])
+  @@index([loanId])
+  @@index([type])
+  @@map("document")
+}
+
+model Counter {
+  id    String @id @map("_id") // e.g. "customer", "loan"
+  value Int    @default(0)
+
+  @@map("counter")
+}
+
+// Singleton document (id = "default") holding PDF branding + template choice.
+model PdfSettings {
+  id              String  @id @map("_id")
+  companyName     String?
+  address         String?
+  phone           String?
+  email           String?
+  footerText      String?
+  primaryColor    String? // hex, e.g. #6d28d9
+  logoUrl         String? // URL or data URI
+  signatureUrl    String? // URL or data URI
+  defaultTemplate String  @default("CLASSIC")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pdf_settings")
+}
+
+model CashTransaction {
+  id     String              @id @default(auto()) @map("_id") @db.ObjectId
+  type   CashTransactionType
+  amount Float
+  note   String?
+
+  transactionDate DateTime @default(now())
+
+  // Optional links to the source records for auto-generated entries.
+  loanId    String? @db.ObjectId
+  paymentId String? @db.ObjectId
+
+  createdById String? @db.ObjectId
+  createdBy   User?   @relation("CashCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([type])
+  @@index([transactionDate])
+  @@index([loanId])
+  @@index([deletedAt])
+  @@map("cash_transaction")
+}
+
+model ActivityLog {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String? @db.ObjectId
+  user        User?   @relation(fields: [userId], references: [id])
+  action      String
+  entity      String
+  entityId    String?
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("activity_log")
+}
