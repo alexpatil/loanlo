@@ -133,7 +133,7 @@ export default async function LoansPage({
               <TableBody>
                 {data.items.map((loan) => (
                   <TableRow key={loan.id} className="cursor-pointer">
-                    <TableCell>
+                    <TableCell className="max-md:font-semibold">
                       <Link href={`/loans/${loan.id}`} className="font-medium hover:text-violet-600">
                         {loan.loanNumber}
                       </Link>
@@ -141,24 +141,26 @@ export default async function LoansPage({
                         <Badge variant="secondary" className="ml-2 text-[10px]">Migrated</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {loan.customer.firstName} {loan.customer.lastName}
-                      <span className="block text-xs text-muted-foreground">
-                        {loan.customer.customerCode}
+                    <TableCell data-label="Customer" className="text-sm">
+                      <span>
+                        {loan.customer.firstName} {loan.customer.lastName}
+                        <span className="block text-xs text-muted-foreground">
+                          {loan.customer.customerCode}
+                        </span>
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell data-label="Type" className="text-xs capitalize text-muted-foreground">
                       {loan.loanType.replace(/_/g, " ").toLowerCase()}
                     </TableCell>
-                    <TableCell className="text-sm font-medium">
+                    <TableCell data-label="Principal" className="text-sm font-medium">
                       {formatCurrency(loan.principalAmount)}
                     </TableCell>
-                    <TableCell className="text-sm">{formatCurrency(loan.emiAmount)}</TableCell>
-                    <TableCell className="text-sm">{loan.tenureMonths} mo</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell data-label="EMI" className="text-sm">{formatCurrency(loan.emiAmount)}</TableCell>
+                    <TableCell data-label="Tenure" className="text-sm">{loan.tenureMonths} mo</TableCell>
+                    <TableCell data-label="Disbursed" className="text-sm text-muted-foreground">
                       {formatDate(loan.disbursementDate)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Status">
                       <StatusBadge status={loan.status} />
                     </TableCell>
                   </TableRow>

@@ -5,8 +5,7 @@ import { calculateLoan, calculateMaturityDate, type LoanMethod } from "@/lib/fin
 import { projectFlexibleAtMaturity } from "@/lib/interest-engine";
 import { round2 } from "@/lib/utils";
 import { nextLoanNumber } from "./sequence.service";
-import { resolveExpectedPaymentDate } from "./loan.service";
-import { recordCashTransaction } from "./cash.service";
+import { resolveExpectedPaymentDate, resolveLoanAgentId } from "./loan.service";
 import type { MigrationInput } from "@/validations/migration.schema";
 
 /**
@@ -68,6 +67,9 @@ export async function migrateLoan(data: MigrationInput, userId: string) {
         ? [{ amount: round2(data.totalCollected), date: data.disbursementDate }]
         : [];
 
+  // Inherit the customer's assigned agent; fall back to the migrating user.
+  const resolvedAgentId = await resolveLoanAgentId(data.assignedAgentId, data.customerId, userId);
+
   return prisma.$transaction(async (tx) => {
     const loan = await tx.loan.create({
       data: {
@@ -96,9 +98,7 @@ export async function migrateLoan(data: MigrationInput, userId: string) {
         customer: { connect: { id: data.customerId } },
         createdBy: { connect: { id: userId } },
         approvedBy: { connect: { id: userId } },
-        ...(data.assignedAgentId
-          ? { assignedAgent: { connect: { id: data.assignedAgentId } } }
-          : { assignedAgent: { connect: { id: userId } } }),
+        assignedAgent: { connect: { id: resolvedAgentId } },
       },
       include: { customer: { select: { id: true } } },
     });
@@ -121,31 +121,11 @@ export async function migrateLoan(data: MigrationInput, userId: string) {
       });
     }
 
-    // Mirror the historical money movement into the cash book.
-    await recordCashTransaction(
-      {
-        type: "LOAN_DISBURSEMENT",
-        amount: data.principalAmount,
-        note: `Migrated disbursement ${loan.loanNumber}`,
-        loanId: loan.id,
-        transactionDate: data.disbursementDate,
-        createdById: userId,
-      },
-      tx,
-    );
-    for (const c of collections) {
-      await recordCashTransaction(
-        {
-          type: "COLLECTION_RECEIVED",
-          amount: c.amount,
-          note: `Migrated collection ${loan.loanNumber}`,
-          loanId: loan.id,
-          transactionDate: c.date,
-          createdById: userId,
-        },
-        tx,
-      );
-    }
+    // Migrated loans are historical imports from a physical register — the money
+    // moved before this system existed. They must NOT touch the cash book: no
+    // LOAN_DISBURSEMENT outflow (which would wrongly debit Cash Available and
+    // inflate "Loans Disbursed") and no COLLECTION_RECEIVED inflow. A migrated
+    // loan only affects Outstanding, Active/Overdue counts and customer history.
 
     return loan;
   });

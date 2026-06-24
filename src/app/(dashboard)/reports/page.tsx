@@ -81,7 +81,7 @@ export default async function ReportsPage() {
           <p className="text-sm text-muted-foreground">Lifetime totals across the book.</p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard title="Total Loans" value={formatNumber(stats.totalLoans)} icon={Banknote} accent="violet" hint={`${stats.activeLoans} active · ${stats.closedLoans} closed`} />
             <StatCard title="Total Disbursed" value={formatCurrency(stats.totalDisbursed)} icon={Wallet} accent="blue" />
             <StatCard title="Total Collection" value={formatCurrency(stats.totalCollection)} icon={PiggyBank} accent="emerald" />
@@ -99,7 +99,7 @@ export default async function ReportsPage() {
           <p className="text-sm text-muted-foreground">Activity since the start of the current month.</p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard title="Disbursed This Month" value={formatCurrency(stats.monthlyDisbursement)} icon={Banknote} accent="blue" />
             <StatCard title="Collected This Month" value={formatCurrency(stats.monthlyCollection)} icon={Wallet} accent="violet" />
             <StatCard title="Total Customers" value={formatNumber(stats.totalCustomers)} icon={Users} accent="emerald" />
@@ -119,7 +119,7 @@ export default async function ReportsPage() {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard title="Expected Profit" value={formatCurrency(profit.expectedProfit)} icon={TrendingUp} accent="emerald" hint="Expected interest + fees" />
             <StatCard title="Expected Interest" value={formatCurrency(profit.expectedInterest)} icon={Percent} accent="violet" hint="Over full loan life" />
             <StatCard title="Outstanding Principal" value={formatCurrency(profit.outstandingPrincipal)} icon={PiggyBank} accent="amber" hint="Money still out" />
@@ -139,7 +139,7 @@ export default async function ReportsPage() {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatCard title="Realized Profit" value={formatCurrency(profit.realizedProfit)} icon={TrendingUp} accent="emerald" hint="Collected interest + penalty + fees" />
             <StatCard title="Interest Collected" value={formatCurrency(profit.interestCollected)} icon={Percent} accent="violet" />
             <StatCard title="Penalty Collected" value={formatCurrency(profit.penaltyCollected)} icon={Coins} accent="amber" />

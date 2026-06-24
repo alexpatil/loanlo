@@ -19,7 +19,7 @@ export default async function LoanCalculatorPage() {
       </Button>
       <PageHeader
         title="Loan Calculator"
-        description="Compare EMI, flat-interest and reducing-balance repayments side by side."
+        description="Calculate interest per day, week, month or year — flat, reducing or compound — or compare EMI installments."
       />
       <LoanCalculator />
     </div>

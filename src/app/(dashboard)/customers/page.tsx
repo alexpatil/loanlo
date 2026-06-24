@@ -101,18 +101,18 @@ export default async function CustomersPage({
                         </div>
                       </Link>
                     </TableCell>
-                    <TableCell className="text-sm">{c.phone}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Phone" className="text-sm">{c.phone}</TableCell>
+                    <TableCell data-label="KYC">
                       <StatusBadge status={c.kycStatus} />
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell data-label="Agent" className="text-sm text-muted-foreground">
                       {c.assignedAgent?.name ?? "—"}
                     </TableCell>
-                    <TableCell className="text-sm">{c._count?.loans ?? 0}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell data-label="Loans" className="text-sm">{c._count?.loans ?? 0}</TableCell>
+                    <TableCell data-label="Added" className="text-sm text-muted-foreground">
                       {formatDate(c.createdAt)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell data-label="Actions" className="text-right">
                       <CustomerRowActions
                         customer={{
                           id: c.id,

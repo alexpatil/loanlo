@@ -61,6 +61,9 @@ export async function getCashSummary(): Promise<CashSummary> {
       where: { deletedAt: { isSet: false } },
       _sum: { amount: true },
     }),
+    // Outstanding = money customers still owe (a portfolio asset, NOT cash).
+    // Migrated loans are included here; they never affect Cash Available (which
+    // is derived purely from cash transactions), only this informational figure.
     prisma.loan.aggregate({
       where: { deletedAt: { isSet: false }, status: { in: ["ACTIVE", "OVERDUE"] } },
       _sum: { outstandingPrincipal: true },

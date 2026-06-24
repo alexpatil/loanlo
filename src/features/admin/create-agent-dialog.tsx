@@ -59,7 +59,7 @@ export function CreateAgentDialog({ canCreateAdmin }: { canCreateAdmin: boolean 
           <UserPlus className="h-4 w-4" /> Add team member
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New team member</DialogTitle>
           <DialogDescription>Create an agent or admin account.</DialogDescription>

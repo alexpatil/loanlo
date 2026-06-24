@@ -45,7 +45,8 @@ export async function createLoanAction(input: unknown) {
       expectedPaymentDate: data.expectedPaymentDate as Date | undefined,
       gracePeriodDays: data.gracePeriodDays ?? 0,
       purpose: data.purpose,
-      assignedAgentId: data.assignedAgentId ?? user.id,
+      // Inherit the customer's agent when none is explicitly chosen (resolved in createLoan).
+      assignedAgentId: data.assignedAgentId,
       createdById: user.id,
     });
 

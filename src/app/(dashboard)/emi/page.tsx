@@ -55,7 +55,7 @@ export default async function EmiPage({
         description="Track installments, dues and overdue collections."
       />
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard title="Pending EMIs" value={formatNumber(stats.pending)} icon={CalendarClock} accent="amber" />
         <StatCard title="Overdue EMIs" value={formatNumber(stats.overdue)} icon={AlertTriangle} accent="rose" />
         <StatCard title="Paid EMIs" value={formatNumber(stats.paid)} icon={CheckCircle2} accent="emerald" />
@@ -96,26 +96,28 @@ export default async function EmiPage({
                   const c = emi.loan.customer;
                   return (
                     <TableRow key={emi.id}>
-                      <TableCell className="text-sm">
-                        {c.firstName} {c.lastName}
-                        <span className="block text-xs text-muted-foreground">{c.phone}</span>
+                      <TableCell className="text-sm max-md:font-semibold">
+                        <span>
+                          {c.firstName} {c.lastName}
+                          <span className="block text-xs font-normal text-muted-foreground">{c.phone}</span>
+                        </span>
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell data-label="Loan" className="text-sm">
                         <Link href={`/loans/${emi.loan.id}`} className="hover:text-violet-600">
                           {emi.loan.loanNumber}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell data-label="Installment" className="text-sm">
                         {emi.installmentNumber ? `#${emi.installmentNumber}` : "—"}
                       </TableCell>
-                      <TableCell className="text-sm">{formatDate(emi.dueDate)}</TableCell>
-                      <TableCell className="text-sm font-medium">
+                      <TableCell data-label="Due date" className="text-sm">{formatDate(emi.dueDate)}</TableCell>
+                      <TableCell data-label="EMI" className="text-sm font-medium">
                         {formatCurrency(emi.emiAmount)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Status">
                         <StatusBadge status={emi.status} />
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell data-label="Action" className="text-right">
                         {emi.status !== "PAID" && can(role, "payment:write") ? (
                           <CollectPaymentDialog
                             loanId={emi.loan.id}

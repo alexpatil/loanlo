@@ -99,7 +99,7 @@ export function CustomerFormDialog({ customer, agents = [], canAssign, trigger }
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit customer" : "New customer"}</DialogTitle>
           <DialogDescription>

@@ -69,17 +69,21 @@ export async function getCustomerReport(scopeAgentId?: string) {
  * payments existed yet — even with interest-bearing loans on the book.
  */
 export async function getProfitReport({ from, to, scopeAgentId }: ReportRange) {
+  // Realized collections — historical migrated payments are not real revenue here.
   const paymentWhere: Prisma.PaymentWhereInput = {
     deletedAt: { isSet: false },
+    isMigrated: { not: true },
     ...(scopeAgentId ? { loan: { assignedAgentId: scopeAgentId } } : {}),
     ...(from || to
       ? { paymentDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
       : {}),
   };
 
-  // Loans that represent disbursed capital (book of business).
+  // Loans that represent disbursed capital (book of business). Migrated loans are
+  // historical imports — they don't count as disbursed/expected profit here.
   const bookWhere: Prisma.LoanWhereInput = {
     deletedAt: { isSet: false },
+    isMigrated: { not: true },
     status: { in: ["ACTIVE", "CLOSED", "OVERDUE"] },
     ...(scopeAgentId ? { assignedAgentId: scopeAgentId } : {}),
     ...(from || to
@@ -87,7 +91,9 @@ export async function getProfitReport({ from, to, scopeAgentId }: ReportRange) {
       : {}),
   };
 
-  // Loans still owing money (for outstanding principal).
+  // Loans still owing money (for outstanding principal). Migrated loans ARE
+  // included — Outstanding reflects all money customers still owe (unlike the
+  // disbursed/collected figures above, which are "through this system" only).
   const outstandingWhere: Prisma.LoanWhereInput = {
     deletedAt: { isSet: false },
     status: { in: ["ACTIVE", "OVERDUE"] },

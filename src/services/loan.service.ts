@@ -192,6 +192,15 @@ export async function createLoan(data: CreateLoanData) {
     tenureMonths = Math.max(1, Math.ceil(proj.durationDays / 30));
   }
 
+  // Default the loan's agent to the customer's assigned agent (the agent chosen
+  // when the customer was created); fall back to the creator only if the
+  // customer has none.
+  const assignedAgentId = await resolveLoanAgentId(
+    data.assignedAgentId,
+    data.customerId,
+    data.createdById,
+  );
+
   return prisma.loan.create({
     data: {
       loanNumber: data.loanNumber,
@@ -217,12 +226,27 @@ export async function createLoan(data: CreateLoanData) {
       status: "PENDING",
       customer: { connect: { id: data.customerId } },
       createdBy: { connect: { id: data.createdById } },
-      ...(data.assignedAgentId
-        ? { assignedAgent: { connect: { id: data.assignedAgentId } } }
-        : {}),
+      assignedAgent: { connect: { id: assignedAgentId } },
     },
     include: { customer: customerSelect },
   });
+}
+
+/**
+ * Resolve which agent a loan should be assigned to: an explicit choice wins,
+ * otherwise inherit the customer's assigned agent, otherwise the creator.
+ */
+export async function resolveLoanAgentId(
+  explicitAgentId: string | undefined,
+  customerId: string,
+  fallbackUserId: string,
+): Promise<string> {
+  if (explicitAgentId) return explicitAgentId;
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    select: { assignedAgentId: true },
+  });
+  return customer?.assignedAgentId ?? fallbackUserId;
 }
 
 /**
@@ -279,17 +303,21 @@ export async function updateLoanStatus(params: {
           lastAccrualDate: disbursementDate,
         },
       });
-      await recordCashTransaction(
-        {
-          type: "LOAN_DISBURSEMENT",
-          amount: loan.principalAmount,
-          note: `Disbursed ${loan.loanNumber}`,
-          loanId: loan.id,
-          transactionDate: disbursementDate,
-          createdById: params.approvedById,
-        },
-        tx,
-      );
+      // Migrated (historical) loans never represent a real disbursement, so they
+      // must not create a cash outflow even if re-activated.
+      if (!loan.isMigrated) {
+        await recordCashTransaction(
+          {
+            type: "LOAN_DISBURSEMENT",
+            amount: loan.principalAmount,
+            note: `Disbursed ${loan.loanNumber}`,
+            loanId: loan.id,
+            transactionDate: disbursementDate,
+            createdById: params.approvedById,
+          },
+          tx,
+        );
+      }
       return updated;
     });
   }
@@ -333,17 +361,21 @@ export async function updateLoanStatus(params: {
           outstandingPrincipal: loan.principalAmount,
         },
       });
-      await recordCashTransaction(
-        {
-          type: "LOAN_DISBURSEMENT",
-          amount: loan.principalAmount,
-          note: `Disbursed ${loan.loanNumber}`,
-          loanId: loan.id,
-          transactionDate: disbursementDate,
-          createdById: params.approvedById,
-        },
-        tx,
-      );
+      // Migrated (historical) loans never represent a real disbursement, so they
+      // must not create a cash outflow even if re-activated.
+      if (!loan.isMigrated) {
+        await recordCashTransaction(
+          {
+            type: "LOAN_DISBURSEMENT",
+            amount: loan.principalAmount,
+            note: `Disbursed ${loan.loanNumber}`,
+            loanId: loan.id,
+            transactionDate: disbursementDate,
+            createdById: params.approvedById,
+          },
+          tx,
+        );
+      }
       return updated;
     });
   }

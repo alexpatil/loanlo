@@ -64,17 +64,17 @@ export default async function AgentsPage() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Role">
                     <Badge variant={u.role === "AGENT" ? "secondary" : "default"}>
                       {ROLE_LABELS[u.role as RoleKey]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">{u._count.assignedCustomers}</TableCell>
-                  <TableCell className="text-sm">{u._count.assignedLoans}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell data-label="Customers" className="text-sm">{u._count.assignedCustomers}</TableCell>
+                  <TableCell data-label="Loans" className="text-sm">{u._count.assignedLoans}</TableCell>
+                  <TableCell data-label="Joined" className="text-sm text-muted-foreground">
                     {formatDate(u.createdAt)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell data-label="Active" className="text-right">
                     <UserActiveToggle
                       userId={u.id}
                       isActive={u.isActive}

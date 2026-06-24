@@ -47,7 +47,7 @@ export default async function CollectionsPage() {
         actions={role !== "AGENT" ? <RefreshOverdueButton /> : undefined}
       />
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard title="Today's Collection" value={formatCurrency(todayColl.totalAmount)} icon={CalendarDays} accent="violet" hint={`${todayColl.total} payments`} />
         <StatCard title="This Month" value={formatCurrency(monthColl.totalAmount)} icon={TrendingUp} accent="emerald" hint={`${monthColl.total} payments`} />
         <StatCard title="Recent Payments" value={recent.total} icon={Wallet} accent="blue" />
@@ -76,19 +76,19 @@ export default async function CollectionsPage() {
                 <TableBody>
                   {recent.items.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm max-md:font-semibold">
                         {p.customer.firstName} {p.customer.lastName}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell data-label="Loan" className="text-sm text-muted-foreground">
                         {p.loan.loanNumber}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">
+                      <TableCell data-label="Amount" className="text-sm font-medium">
                         {formatCurrency(p.amount)}
                       </TableCell>
-                      <TableCell className="text-sm capitalize">
+                      <TableCell data-label="Method" className="text-sm capitalize">
                         {p.paymentMethod.toLowerCase().replace(/_/g, " ")}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell data-label="Date" className="text-sm text-muted-foreground">
                         {formatDate(p.paymentDate)}
                       </TableCell>
                     </TableRow>

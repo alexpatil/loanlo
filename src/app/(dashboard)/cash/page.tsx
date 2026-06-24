@@ -77,7 +77,7 @@ export default async function CashPage({
       />
 
       {/* Summary */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
         <StatCard title="Cash Available" value={formatCurrency(summary.cashAvailable)} icon={Wallet} accent={summary.cashAvailable >= 0 ? "emerald" : "rose"} hint={`Capital ${formatCurrency(summary.capitalAdded)}`} />
         <StatCard title="Total Loans Disbursed" value={formatCurrency(summary.loansDisbursed)} icon={Banknote} accent="blue" />
         <StatCard title="Total Collections" value={formatCurrency(summary.collectionsReceived)} icon={HandCoins} accent="violet" />
@@ -143,8 +143,8 @@ export default async function CashPage({
                   const sign = CASH_TYPE_SIGN[t.type as CashTransactionTypeKey];
                   return (
                     <TableRow key={t.id}>
-                      <TableCell className="text-sm">{formatDate(t.transactionDate)}</TableCell>
-                      <TableCell>
+                      <TableCell data-label="Date" className="text-sm">{formatDate(t.transactionDate)}</TableCell>
+                      <TableCell data-label="Type">
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
@@ -154,13 +154,14 @@ export default async function CashPage({
                           {CASH_TYPE_LABELS[t.type as CashTransactionTypeKey]}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                      <TableCell data-label="Note" className="text-sm text-muted-foreground md:max-w-xs md:truncate">
                         {t.note ?? "—"}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell data-label="Recorded by" className="text-sm text-muted-foreground">
                         {t.createdBy?.name ?? "System"}
                       </TableCell>
                       <TableCell
+                        data-label="Amount"
                         className={cn(
                           "text-right text-sm font-semibold",
                           sign === 1 ? "text-emerald-600" : "text-rose-600",

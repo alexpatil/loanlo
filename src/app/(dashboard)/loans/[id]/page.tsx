@@ -125,7 +125,7 @@ export default async function LoanDetailPage({
       </div>
 
       {/* Summary tiles */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <SummaryTile label="Principal" value={formatCurrency(loan.principalAmount)} />
         <SummaryTile
           label={isFlexible ? "Outstanding (live)" : "Outstanding principal"}
@@ -160,15 +160,15 @@ export default async function LoanDetailPage({
                   <TableBody>
                     {flexState.statement.map((ln, i) => (
                       <TableRow key={i}>
-                        <TableCell className="text-sm">{formatDate(ln.date)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{ln.description}</TableCell>
-                        <TableCell className="text-right text-sm">
+                        <TableCell data-label="Date" className="text-sm max-md:font-semibold">{formatDate(ln.date)}</TableCell>
+                        <TableCell data-label="Description" className="text-xs text-muted-foreground">{ln.description}</TableCell>
+                        <TableCell data-label="Interest" className="text-right text-sm">
                           {ln.interest > 0 ? formatCurrency(ln.interest) : "—"}
                         </TableCell>
-                        <TableCell className="text-right text-sm">
+                        <TableCell data-label="Payment" className="text-right text-sm">
                           {ln.payment > 0 ? formatCurrency(ln.payment) : "—"}
                         </TableCell>
-                        <TableCell className="text-right text-sm font-medium">
+                        <TableCell data-label="Balance" className="text-right text-sm font-medium">
                           {formatCurrency(ln.balance)}
                         </TableCell>
                       </TableRow>
@@ -215,24 +215,24 @@ export default async function LoanDetailPage({
                   <TableBody>
                     {loan.emiSchedules.map((emi) => (
                       <TableRow key={emi.id}>
-                        <TableCell className="text-sm">{emi.installmentNumber}</TableCell>
-                        <TableCell className="text-sm">{formatDate(emi.dueDate)}</TableCell>
-                        <TableCell className="text-sm font-medium">
+                        <TableCell data-label="No." className="text-sm max-md:font-semibold">{emi.installmentNumber}</TableCell>
+                        <TableCell data-label="Due date" className="text-sm">{formatDate(emi.dueDate)}</TableCell>
+                        <TableCell data-label="EMI" className="text-sm font-medium">
                           {formatCurrency(emi.emiAmount)}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell data-label="Principal" className="text-sm">
                           {formatCurrency(emi.principalComponent)}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell data-label="Interest" className="text-sm">
                           {formatCurrency(emi.interestComponent)}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell data-label="Balance" className="text-sm text-muted-foreground">
                           {formatCurrency(emi.remainingBalance)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell data-label="Status">
                           <StatusBadge status={emi.status} />
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell data-label="Action" className="text-right">
                           {emi.status !== "PAID" && isActive && can(role, "payment:write") ? (
                             <CollectPaymentDialog
                               loanId={loan.id}
@@ -353,9 +353,9 @@ export default async function LoanDetailPage({
 
 function SummaryTile({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="p-5">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-bold">{value}</p>
+    <Card className="p-4 sm:p-5">
+      <p className="text-xs text-muted-foreground sm:text-sm">{label}</p>
+      <p className="mt-1 text-lg font-bold tabular-nums sm:text-xl">{value}</p>
     </Card>
   );
 }

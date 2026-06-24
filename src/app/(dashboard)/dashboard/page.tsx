@@ -12,6 +12,9 @@ import {
   HandCoins,
   Banknote,
   ArrowUpRight,
+  Landmark,
+  Users,
+  TrendingUp,
 } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { requireAuth } from "@/lib/session";
@@ -61,7 +64,7 @@ export default async function DashboardPage() {
       />
 
       {/* Headline metrics — the four numbers that drive the business */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {cash ? (
           <StatCard
             title="Cash Available"
@@ -100,6 +103,46 @@ export default async function DashboardPage() {
           accent="rose"
           hint={`${repayment.overdue.count} loan${repayment.overdue.count === 1 ? "" : "s"} overdue`}
         />
+
+        {/* Secondary metrics — portfolio size and momentum */}
+        <StatCard
+          title="Active Loans"
+          value={stats.activeLoans}
+          icon={Landmark}
+          accent="blue"
+          hint={`${stats.pendingLoans} pending · ${stats.closedLoans} closed`}
+        />
+        <StatCard
+          title="Total Customers"
+          value={stats.totalCustomers}
+          icon={Users}
+          accent="violet"
+          hint="Borrowers on your book"
+        />
+        <StatCard
+          title="Collected This Month"
+          value={formatCurrency(stats.monthlyCollection)}
+          icon={TrendingUp}
+          accent="emerald"
+          hint="Received since the 1st"
+        />
+        {cash ? (
+          <StatCard
+            title="Due This Week"
+            value={formatCurrency(repayment.dueThisWeek.amount)}
+            icon={CalendarRange}
+            accent="amber"
+            hint={`${repayment.dueThisWeek.count} collection${repayment.dueThisWeek.count === 1 ? "" : "s"} due`}
+          />
+        ) : (
+          <StatCard
+            title="Pending Approval"
+            value={stats.pendingLoans}
+            icon={CalendarClock}
+            accent="amber"
+            hint="Awaiting your review"
+          />
+        )}
       </div>
 
       {/* Trend + activity */}
@@ -178,14 +221,14 @@ export default async function DashboardPage() {
                 <TableBody>
                   {repayment.upcoming.map((item) => (
                     <TableRow key={`${item.source}-${item.id}`}>
-                      <TableCell className="text-sm font-medium">{item.customerName}</TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm font-medium max-md:font-semibold">{item.customerName}</TableCell>
+                      <TableCell data-label="Loan" className="text-sm">
                         <Link href={`/loans/${item.loanId}`} className="text-muted-foreground hover:text-violet-600">
                           {item.loanNumber}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(item.dueDate)}</TableCell>
-                      <TableCell className="text-right text-sm font-semibold">{formatCurrency(item.amount)}</TableCell>
+                      <TableCell data-label="Due date" className="text-sm text-muted-foreground">{formatDate(item.dueDate)}</TableCell>
+                      <TableCell data-label="Amount" className="text-right text-sm font-semibold">{formatCurrency(item.amount)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -217,13 +260,15 @@ export default async function DashboardPage() {
                 <TableBody>
                   {repayment.commitments.map((c) => (
                     <TableRow key={`${c.customerName}-${c.phone}`}>
-                      <TableCell className="text-sm font-medium">
-                        {c.customerName}
-                        <span className="block text-xs text-muted-foreground">{c.phone}</span>
+                      <TableCell className="text-sm font-medium max-md:font-semibold">
+                        <span>
+                          {c.customerName}
+                          <span className="block text-xs font-normal text-muted-foreground">{c.phone}</span>
+                        </span>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(c.nextDueDate)}</TableCell>
-                      <TableCell className="text-center text-sm text-muted-foreground">{c.items}</TableCell>
-                      <TableCell className="text-right text-sm font-semibold">{formatCurrency(c.totalDue)}</TableCell>
+                      <TableCell data-label="Next due" className="text-sm text-muted-foreground">{formatDate(c.nextDueDate)}</TableCell>
+                      <TableCell data-label="Dues" className="text-center text-sm text-muted-foreground">{c.items}</TableCell>
+                      <TableCell data-label="Total" className="text-right text-sm font-semibold">{formatCurrency(c.totalDue)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

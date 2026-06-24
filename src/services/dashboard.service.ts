@@ -37,17 +37,20 @@ export async function getDashboardStats(scopeAgentId?: string): Promise<Dashboar
     prisma.customer.count({
       where: { deletedAt: { isSet: false }, ...(scopeAgentId ? { assignedAgentId: scopeAgentId } : {}) },
     }),
+    // Disbursed = real money lent out. Migrated (historical) loans are excluded.
     prisma.loan.aggregate({
-      where: { ...scope, status: { in: ["ACTIVE", "CLOSED", "OVERDUE"] } },
+      where: { ...scope, isMigrated: { not: true }, status: { in: ["ACTIVE", "CLOSED", "OVERDUE"] } },
       _sum: { principalAmount: true },
     }),
     prisma.loan.aggregate({
-      where: { ...scope, disbursementDate: { gte: monthStart } },
+      where: { ...scope, isMigrated: { not: true }, disbursementDate: { gte: monthStart } },
       _sum: { principalAmount: true },
     }),
+    // Collections = real money received. Historical migrated payments excluded.
     prisma.payment.aggregate({
       where: {
         deletedAt: { isSet: false },
+        isMigrated: { not: true },
         ...(scopeAgentId ? { loan: { assignedAgentId: scopeAgentId } } : {}),
       },
       _sum: { amount: true },
@@ -55,13 +58,15 @@ export async function getDashboardStats(scopeAgentId?: string): Promise<Dashboar
     prisma.payment.aggregate({
       where: {
         deletedAt: { isSet: false },
+        isMigrated: { not: true },
         paymentDate: { gte: monthStart },
         ...(scopeAgentId ? { loan: { assignedAgentId: scopeAgentId } } : {}),
       },
       _sum: { amount: true },
     }),
     // Use the live outstanding field so non-EMI loans (which have no EMI
-    // schedule) are counted the same way as EMI loans.
+    // schedule) are counted the same way as EMI loans. Migrated loans ARE
+    // included — Outstanding reflects all money customers still owe.
     prisma.loan.aggregate({
       where: { ...scope, status: { in: ["ACTIVE", "OVERDUE"] } },
       _sum: { outstandingPrincipal: true },
@@ -104,6 +109,9 @@ export async function getCollectionTrend(
         },
         _sum: { amount: true },
       }),
+      // The trend is a historical view of lending activity, so migrated loans —
+      // disbursed in (e.g.) March — are included here even though they never
+      // touch the cash book.
       prisma.loan.aggregate({
         where: {
           deletedAt: { isSet: false },

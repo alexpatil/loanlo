@@ -61,7 +61,7 @@ export function CashEntryDialog({ type, label, variant = "outline", icon }: Prop
           {label}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{CASH_TYPE_LABELS[type as CashTransactionTypeKey]}</DialogTitle>
           <DialogDescription>Record a manual cash movement.</DialogDescription>

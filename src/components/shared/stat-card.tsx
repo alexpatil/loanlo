@@ -30,11 +30,11 @@ export function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <Card className={cn("p-5 transition-shadow hover:shadow-md", className)}>
+    <Card className={cn("p-4 transition-shadow hover:shadow-md sm:p-5", className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight">{value}</p>
+          <p className="truncate text-xs font-medium text-muted-foreground sm:text-sm">{title}</p>
+          <p className="mt-1.5 text-xl font-bold tracking-tight tabular-nums sm:mt-2 sm:text-2xl">{value}</p>
           {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
           {trend && (
             <p
@@ -49,7 +49,8 @@ export function StatCard({
         </div>
         <div
           className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br",
+            // Hidden on the smallest screens so the value gets the full card width.
+            "hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br sm:flex",
             ACCENTS[accent],
           )}
         >

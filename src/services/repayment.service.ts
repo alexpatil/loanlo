@@ -44,6 +44,8 @@ export async function getRepaymentOverview(scopeAgentId?: string): Promise<Repay
   const weekEnd = endOfDay(addDays(now, 6));
   const horizon = endOfDay(addDays(now, 30));
 
+  // Migrated loans ARE included — their customers still owe money and need to be
+  // chased. (Only cash-flow metrics exclude migrated, not the repayment radar.)
   const loanScope: Prisma.LoanWhereInput = {
     deletedAt: { isSet: false },
     status: { in: ["ACTIVE", "OVERDUE"] },
